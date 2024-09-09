@@ -40,6 +40,11 @@ class AlertSenderService
   end
 
   def alert_class
-    @type.constantize
+    begin
+      @type.constantize
+    rescue NameError
+      raise "Invalid alert type: #{@type}"
+    end
   end
+  
 end
