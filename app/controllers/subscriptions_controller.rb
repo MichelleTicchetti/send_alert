@@ -1,6 +1,11 @@
 class SubscriptionsController < ApplicationController
-  before_action :set_user
-  before_action :set_topic
+  before_action :set_user, only: [:create, :destroy]
+  before_action :set_topic, only: [:create, :destroy]
+
+  def index
+    subscriptions = Subscription.all
+    render json: subscriptions, status: :ok
+  end
 
   def create
     @user.subscribe_to(@topic)

@@ -1,5 +1,6 @@
 class UsersController < ApplicationController
-  before_action :set_user, only: [ :show, :update, :destroy, :mark_all_alerts_as_read ]
+  before_action :set_user, only: [ :show, :update, :destroy, :mark_all_alerts_as_read, :alerts, :subscriptions, :subscribe_to_topic, :unsubscribe_from_topic, :mark_all_alerts_as_read, :mark_alert_as_read ]
+  before_action :set_topic, only: [ :subscribe_to_topic, :unsubscribe_from_topic ]
 
   def index
     users = User.all
@@ -39,15 +40,15 @@ class UsersController < ApplicationController
   end
 
   def alerts
-    alerts = @user.alerts
+    alerts = @user.alerts.order_by_priority
 
-    alerts = alerts.unread if params[:unread].present?
-    alerts = alerts.expired if params[:expired].present?
-    alerts = alerts.unexpired if params[:unexpired].present?
+    alerts = alerts.unread if params[:unread] == 'true'
+    alerts = alerts.read if params[:unread] == 'false'
+    alerts = alerts.expired if params[:expired] == 'true'
+    alerts = alerts.unexpired if params[:expired] == 'false'
 
-    render json: alerts, status: :ok
+    render json: alerts, each_serializer: AlertSerializer, status: :ok
   end
-
 
   def subscriptions
     render json: @user.subscriptions, status: :ok
@@ -67,16 +68,28 @@ class UsersController < ApplicationController
     render json: { success: false, message: e.message }, status: :unprocessable_entity
   end
 
-  def subscribe_to_topic
-    @user.subscribe_to!(params[:topic_id])
-    render json: { success: true, message: "User subscribed to topic successfully" }, status: :ok
+  def subscribe_to_topic    
+    if @user.subscribe_to!(@topic)
+      render json: { success: true, message: "User subscribed to topic successfully" }, status: :ok
+    else
+      render json: { success: false, message: "Failed to subscribe user to topic" }, status: :unprocessable_entity
+    end
+
+  rescue ActiveRecord::RecordNotFound
+    render json: { success: false, message: "User or Topic not found" }, status: :not_found
   rescue StandardError => e
     render json: { success: false, message: e.message }, status: :unprocessable_entity
   end
 
   def unsubscribe_from_topic
-    @user.unsubscribe_from!(params[:topic_id])
-    render json: { success: true, message: "User unsubscribed to topic successfully" }, status: :ok
+    if @user.unsubscribe_from!(@topic)
+      render json: { success: true, message: "User unsubscribed from topic successfully" }, status: :ok
+    else
+      render json: { success: false, message: "Failed to unsubscribe user from topic" }, status: :unprocessable_entity
+    end
+
+  rescue ActiveRecord::RecordNotFound
+    render json: { success: false, message: "User or Topic not found" }, status: :not_found
   rescue StandardError => e
     render json: { success: false, message: e.message }, status: :unprocessable_entity
   end
@@ -87,6 +100,12 @@ class UsersController < ApplicationController
     @user = User.find(params[:id])
   rescue ActiveRecord::RecordNotFound
     render json: { success: false, message: "User not found" }, status: :not_found
+  end
+
+  def set_topic
+    @topic = Topic.find(params[:topic_id])
+  rescue ActiveRecord::RecordNotFound
+    render json: { success: false, message: "Topic not found" }, status: :not_found
   end
 
   def user_params

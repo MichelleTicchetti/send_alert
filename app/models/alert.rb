@@ -31,16 +31,14 @@ class Alert < ApplicationRecord
   validates :type, presence: true,  inclusion: { in: %w[InformativeAlert UrgentAlert] }
 
   scope :unread, -> { where(read: false) }
+  scope :read, -> { where(read: true) }
   scope :expired, -> { where("expiration_time IS NOT NULL AND expiration_time <= ?", Time.current) }
   scope :unexpired, -> { where("expiration_time IS NULL OR expiration_time > ?", Time.current) }
 
   scope :order_by_priority, -> {
-    order(
-      "CASE WHEN type = 'UrgentAlert' THEN 0 ELSE 1 END ASC",
-      "CASE WHEN type = 'UrgentAlert' THEN created_at DESC ELSE created_at ASC END"
-    )
+    order(Arel.sql("CASE WHEN type = 'UrgentAlert' THEN 0 ELSE 1 END ASC"))
+      .order(Arel.sql("created_at DESC")) # LIFO para Urgent, FIFO para Informative
   }
-
 
   def mark_as_read
     update(read: true)

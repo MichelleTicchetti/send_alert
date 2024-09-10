@@ -1,6 +1,11 @@
 class AlertsController < ApplicationController
-  before_action :set_topic, only: [ :create ]
+  before_action :set_topic, only: [ :create, :unexpired_for_topic ]
   before_action :set_user, only: [ :create ]
+
+  def index
+    alerts = Alert.all
+    render json: alerts, status: :ok
+  end
 
   def create
     type = params[:type] || "InformativeAlert"
